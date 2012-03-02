@@ -1,0 +1,3 @@
+sda1	1M	512M	ext3	/boot
+sda2	512M	4608M	swap
+sda3	4608M	-1	ext3	/

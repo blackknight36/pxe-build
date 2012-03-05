@@ -13,7 +13,14 @@ system("cp /tftpboot/g4l/ramdisk-master /tftpboot/g4l/$tempname");
 system("mount -o loop -t ext2 /tftpboot/g4l/$tempname /mnt/temp");
 
 my $templateurl = $ARGV[0];
-my $disk = "/dev/$ARGV[1]";
+my $disk = "$ARGV[1]";
+
+if ( $ARGV[1] eq "sdb" ) {
+	my $grubdisk = "hd1";
+} else {
+	my $grubdisk = "hd0";
+}
+
 my $label = $ARGV[3];
 my $menulabel = $ARGV[4];
 
@@ -30,10 +37,10 @@ foreach my $line (@lines) {
 	my ($part, $start, $end, $fstype, $label) = split(/\s/, $line);
 	if ( $fstype =~ ".*swap*" ) {
 		print OUT "parted -s $disk 'mkpart linux-swap $start $end'\n";
-		print OUT "mkswap $disk$part\n";	
+		print OUT "mkswap /dev/$disk$part\n";	
 	} else {
 		print OUT "parted -s $disk 'mkpart $label $start $end'\n";
-		print OUT "mkfs -t $fstype -L $label $disk$part\n";
+		print OUT "mkfs -t $fstype -L $label /dev/$disk$part\n";
 	}
 	$i++;
 }
@@ -49,13 +56,13 @@ print OUT "mkdir /mnt/gentoo\n";
 
 # now mount the partitions
 foreach my $line (@lines) {
-	my ($dev, $start, $end, $fstype, $label) = split(/\s/, $line);
+	my ($part, $start, $end, $fstype, $label) = split(/\s/, $line);
 	if ( $label eq "/" ) {
-		print OUT "mount -t $fstype $disk$dev /mnt/gentoo\n";
+		print OUT "mount -t $fstype /dev/$disk$part /mnt/gentoo\n";
 		$mcount++;
 	} else {
 		print OUT "mkdir -p /mnt/gentoo$label\n";
-		print OUT "mount -t $fstype $disk$dev /mnt/gentoo$label\n";
+		print OUT "mount -t $fstype /dev/$disk$part /mnt/gentoo$label\n";
 		$mcount++;
 	}
 }
@@ -81,14 +88,19 @@ wget -q -O - $templateurl | bunzip2 | tar -C /mnt/gentoo -xpv
 echo 'template installed.  Installing boot loader.'
 
 /mnt/gentoo/sbin/grub --no-floppy --batch << EOF
-root (hd0,0)
-setup (hd0)
+root ($grubdisk,0)
+setup ($grubdisk)
 EOF
+
+#fix fstab and grub.conf
+sed -i -e 's/sda/$disk/' /mnt/boot/grub/menu.lst
+sed -i -e 's/sda/$disk/' /mnt/etc/fstab
 
 echo 'system build done.  Please reboot.'
 ";
 
 close(OUT);
+
 system("umount /mnt/temp");
 
 print "compressing ramdisk image...\n";

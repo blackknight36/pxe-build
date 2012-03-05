@@ -1,8 +1,10 @@
+trash/
 .bash_history
 .bash_logout
 .bash_profile
 .gem/
 .gitconfig
+.gitignore
 .keep
 .lesshst
 .mysql_history

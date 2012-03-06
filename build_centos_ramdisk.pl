@@ -29,20 +29,22 @@ my @lines = <INPUT>;
 
 open(OUT, ">", "/mnt/temp/parted_commands.sh");
 
-print OUT "parted -s /dev/$disk 'mklabel gpt'\n";
+print OUT "parted -s /dev/$disk 'mklabel msdos'\n";
 	
 my $i = 1;
 foreach my $line (@lines) {
 	my ($part, $start, $end, $fstype, $label) = split(/\s/, $line);
 	if ( $fstype =~ ".*swap*" ) {
-		print OUT "parted -s /dev/$disk 'mkpart linux-swap $start $end'\n";
+		print OUT "parted -s /dev/$disk 'mkpart primary linux-swap $start $end'\n";
 		print OUT "mkswap /dev/$disk$part\n";	
 	} else {
-		print OUT "parted -s /dev/$disk 'mkpart $label $start $end'\n";
+		print OUT "parted -s /dev/$disk 'mkpart primary $label $start $end'\n";
 		print OUT "mkfs -t $fstype -L $label /dev/$disk$part\n";
 	}
 	$i++;
 }
+
+print "$grubdisk\n";
 
 my $numparts = $i -1;
 

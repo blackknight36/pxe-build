@@ -14,8 +14,13 @@ system("mount -o loop -t ext2 /tftpboot/g4l/$tempname /mnt/temp");
 
 my $templateurl = $ARGV[0];
 my $disk = $ARGV[1];
+my $parteddisk = "$disk";
 my $grubdisk = "hd0";
 
+if ( $disk eq "vda" ) {
+	$parteddisk = "sda";
+} 
+	
 if ( $disk eq "sdb" ) {
 	my $grubdisk = "hd1";
 } 
@@ -29,17 +34,17 @@ my @lines = <INPUT>;
 
 open(OUT, ">", "/mnt/temp/parted_commands.sh");
 
-print OUT "parted -s /dev/$disk 'mklabel gpt'\n";
+print OUT "parted -s /dev/$parteddisk 'mklabel gpt'\n";
 	
 my $i = 1;
 foreach my $line (@lines) {
 	my ($part, $start, $end, $fstype, $label) = split(/\s/, $line);
 	if ( $fstype =~ ".*swap*" ) {
-		print OUT "parted -s /dev/$disk 'mkpart linux-swap $start $end'\n";
-		print OUT "mkswap /dev/$disk$part\n";	
+		print OUT "parted -s /dev/$parteddisk 'mkpart linux-swap $start $end'\n";
+		print OUT "mkswap /dev/$parteddisk$part\n";	
 	} else {
-		print OUT "parted -s /dev/$disk 'mkpart $label $start $end'\n";
-		print OUT "mkfs -t $fstype -L $label /dev/$disk$part\n";
+		print OUT "parted -s /dev/$parteddisk 'mkpart $label $start $end'\n";
+		print OUT "mkfs -t $fstype -L $label /dev/$parteddisk$part\n";
 	}
 	$i++;
 }
@@ -48,6 +53,7 @@ my $numparts = $i -1;
 
 my $mcount = 0;
 
+print OUT "\n";
 print OUT "mkdir /mnt/gentoo\n";
 
 # sort by mount point
@@ -57,11 +63,11 @@ print OUT "mkdir /mnt/gentoo\n";
 foreach my $line (@lines) {
 	my ($part, $start, $end, $fstype, $label) = split(/\s/, $line);
 	if ( $label eq "/" ) {
-		print OUT "mount -t $fstype /dev/$disk$part /mnt/gentoo\n";
+		print OUT "mount -t $fstype /dev/$parteddisk$part /mnt/gentoo\n";
 		$mcount++;
 	} else {
 		print OUT "mkdir -p /mnt/gentoo$label\n";
-		print OUT "mount -t $fstype /dev/$disk$part /mnt/gentoo$label\n";
+		print OUT "mount -t $fstype /dev/$parteddisk$part /mnt/gentoo$label\n";
 		$mcount++;
 	}
 }
@@ -109,6 +115,8 @@ system("umount /mnt/temp");
 
 print "compressing ramdisk image...\n";
 system("lzma -z /tftpboot/g4l/$tempname");
+
+print "/tftpboot/g4l/$tempname.lzma ramdisk created.\n";
 
 open(OUT, ">>", "/tftpboot/pxelinux.cfg/default");
 

@@ -35,16 +35,14 @@ my $i = 1;
 foreach my $line (@lines) {
 	my ($part, $start, $end, $fstype, $label) = split(/\s/, $line);
 	if ( $fstype =~ ".*swap*" ) {
-		print OUT "parted -s /dev/$disk 'mkpart primary linux-swap $start $end'\n";
+		print OUT "parted -s /dev/$disk 'mkpart primary $start $end'\n";
 		print OUT "mkswap /dev/$disk$part\n";	
 	} else {
-		print OUT "parted -s /dev/$disk 'mkpart primary $label $start $end'\n";
+		print OUT "parted -s /dev/$disk 'mkpart primary $start $end'\n";
 		print OUT "mkfs -t $fstype -L $label /dev/$disk$part\n";
 	}
 	$i++;
 }
-
-print "$grubdisk\n";
 
 my $numparts = $i -1;
 
@@ -101,6 +99,7 @@ EOF
 #fix fstab and grub.conf
 sed -i -e 's/sda/$disk/' /mnt/gentoo/boot/grub/menu.lst
 sed -i -e 's/sda/$disk/' /mnt/gentoo/etc/fstab
+sed -i -e 's/ext4/ext3/' /mnt/gentoo/etc/fstab
 
 echo 'system build done.  Please reboot.'
 ";
@@ -111,6 +110,8 @@ system("umount /mnt/temp");
 
 print "compressing ramdisk image...\n";
 system("lzma -z /tftpboot/g4l/$tempname");
+
+print "/tftpboot/g4l/$tempname.lzma ramdisk created.\n";
 
 open(OUT, ">>", "/tftpboot/pxelinux.cfg/default");
 

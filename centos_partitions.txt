@@ -1,0 +1,3 @@
+1	17.4k	256M	ext3	/boot
+2	256M	4352M	linux-swap	swap
+3	4352M	-1	ext3	/

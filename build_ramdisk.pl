@@ -13,18 +13,7 @@ system("cp /tftpboot/g4l/ramdisk-master /tftpboot/g4l/$tempname");
 system("mount -o loop -t ext2 /tftpboot/g4l/$tempname /mnt/temp");
 
 my $templateurl = $ARGV[0];
-my $disk = $ARGV[1];
-my $parteddisk = "$disk";
-my $grubdisk = "hd0";
-
-if ( $disk eq "vda" ) {
-	$parteddisk = "sda";
-} 
-	
-if ( $disk eq "sdb" ) {
-	my $grubdisk = "hd1";
-} 
-
+my $disk = "/dev/$ARGV[1]";
 my $label = $ARGV[3];
 my $menulabel = $ARGV[4];
 
@@ -34,17 +23,17 @@ my @lines = <INPUT>;
 
 open(OUT, ">", "/mnt/temp/parted_commands.sh");
 
-print OUT "parted -s /dev/$parteddisk 'mklabel gpt'\n";
+print OUT "parted -s $disk 'mklabel gpt'\n";
 	
 my $i = 1;
 foreach my $line (@lines) {
 	my ($part, $start, $end, $fstype, $label) = split(/\s/, $line);
 	if ( $fstype =~ ".*swap*" ) {
-		print OUT "parted -s /dev/$parteddisk 'mkpart linux-swap $start $end'\n";
-		print OUT "mkswap /dev/$parteddisk$part\n";	
+		print OUT "parted -s $disk 'mkpart linux-swap $start $end'\n";
+		print OUT "mkswap $disk$part\n";	
 	} else {
-		print OUT "parted -s /dev/$parteddisk 'mkpart $label $start $end'\n";
-		print OUT "mkfs -t $fstype -L $label /dev/$parteddisk$part\n";
+		print OUT "parted -s $disk 'mkpart $label $start $end'\n";
+		print OUT "mkfs -t $fstype -L $label $disk$part\n";
 	}
 	$i++;
 }
@@ -53,7 +42,6 @@ my $numparts = $i -1;
 
 my $mcount = 0;
 
-print OUT "\n";
 print OUT "mkdir /mnt/gentoo\n";
 
 # sort by mount point
@@ -61,13 +49,13 @@ print OUT "mkdir /mnt/gentoo\n";
 
 # now mount the partitions
 foreach my $line (@lines) {
-	my ($part, $start, $end, $fstype, $label) = split(/\s/, $line);
+	my ($dev, $start, $end, $fstype, $label) = split(/\s/, $line);
 	if ( $label eq "/" ) {
-		print OUT "mount -t $fstype /dev/$parteddisk$part /mnt/gentoo\n";
+		print OUT "mount -t $fstype $disk$dev /mnt/gentoo\n";
 		$mcount++;
 	} else {
 		print OUT "mkdir -p /mnt/gentoo$label\n";
-		print OUT "mount -t $fstype /dev/$parteddisk$part /mnt/gentoo$label\n";
+		print OUT "mount -t $fstype $disk$dev /mnt/gentoo$label\n";
 		$mcount++;
 	}
 }
@@ -90,33 +78,21 @@ echo 'disk preparation done.  Installing template.'
 # changed to use wget
 wget -q -O - $templateurl | bunzip2 | tar -C /mnt/gentoo -xpv 
 
-if [ \$? != 0 ]; then
-	echo 'Error downloading template.  Exiting.'
-	exit 1
-fi
-
 echo 'template installed.  Installing boot loader.'
 
 /mnt/gentoo/sbin/grub --no-floppy --batch << EOF
-root ($grubdisk,0)
-setup ($grubdisk)
+root (hd0,0)
+setup (hd0)
 EOF
-
-#fix fstab and grub.conf
-sed -i -e 's/sda/$disk/' /mnt/gentoo/boot/grub/menu.lst
-sed -i -e 's/sda/$disk/' /mnt/gentoo/etc/fstab
 
 echo 'system build done.  Please reboot.'
 ";
 
 close(OUT);
-
 system("umount /mnt/temp");
 
 print "compressing ramdisk image...\n";
 system("lzma -z /tftpboot/g4l/$tempname");
-
-print "/tftpboot/g4l/$tempname.lzma ramdisk created.\n";
 
 open(OUT, ">>", "/tftpboot/pxelinux.cfg/default");
 
@@ -124,8 +100,7 @@ open(OUT, ">>", "/tftpboot/pxelinux.cfg/default");
 print OUT "label $label
 MENU LABEL $menulabel
 KERNEL g4l/bz3x0.3
-APPEND initrd=g4l/$tempname.lzma ramdisk_size=65536 root=/dev/ram0
+APPEND initrd=g4l/$tempname.lzma ramdisk_size=65536 root=/dev/ram0 quiet
 
 ";
 close(OUT);
-

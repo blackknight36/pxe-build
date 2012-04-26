@@ -1,6 +1,0 @@
-sda1	1M	512M	ext3	/boot
-sda2	512M	1024M	swap
-sda3	1024M	3072M	ext3	/
-sda4	3072M	5120M	ext3	/var
-sda5	5120M	6000M	ext3	/var/tmp
-sda6	6000M	-1	ext3	/var/lib/mysql

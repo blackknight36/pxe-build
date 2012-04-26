@@ -3,7 +3,7 @@
 use Digest::MD5 qw(md5 md5_hex md5_base64);
 
 if ( @ARGV < 5 ) {
-	print "usage: build-ramdisk.pl <template_url> <sda|sdb> <partition_info_file.txt> <pxe_boot_label> <pxe_menulabel>\n";
+	print "usage: build_centos_ramdisk.pl <template_url> <partition_info_file.txt> <pxe_boot_label> <pxe_menulabel>\n";
         exit 1;
 }
 
@@ -13,17 +13,13 @@ system("cp /tftpboot/g4l/ramdisk-master /tftpboot/g4l/$tempname");
 system("mount -o loop -t ext2 /tftpboot/g4l/$tempname /mnt/temp");
 
 my $templateurl = $ARGV[0];
-my $disk = $ARGV[1];
+my $disk = "sda";
 my $grubdisk = "hd0";
 
-if ( $disk eq "sdb" ) {
-	my $grubdisk = "hd1";
-} 
+my $label = $ARGV[2];
+my $menulabel = $ARGV[3];
 
-my $label = $ARGV[3];
-my $menulabel = $ARGV[4];
-
-open(INPUT, "<", $ARGV[2]);
+open(INPUT, "<", $ARGV[1]);
 
 my @lines = <INPUT>;
 
@@ -38,7 +34,7 @@ foreach my $line (@lines) {
 		print OUT "parted -s /dev/$disk 'mkpart primary $start $end'\n";
 		print OUT "mkswap /dev/$disk$part\n";	
 	} else {
-		print OUT "parted -s /dev/$disk 'mkpart primary $start $end'\n";
+		print OUT "parted -s /dev/$disk 'mkpart primary $fstype $start $end'\n";
 		print OUT "mkfs -t $fstype -L $label /dev/$disk$part\n";
 	}
 	$i++;
@@ -81,8 +77,7 @@ sh /parted_commands.sh
 
 echo 'disk preparation done.  Installing template.'
 
-# changed to use wget
-wget -q -O - $templateurl | bunzip2 | tar -C /mnt/gentoo -xpv 
+wget -q -O - $templateurl | gunzip | tar -C /mnt/gentoo -xpv 
 
 if [ \$? != 0 ]; then
 	echo 'Error downloading template.  Exiting.'
@@ -95,11 +90,6 @@ echo 'template installed.  Installing boot loader.'
 root ($grubdisk,0)
 setup ($grubdisk)
 EOF
-
-#fix fstab and grub.conf
-sed -i -e 's/sda/$disk/' /mnt/gentoo/boot/grub/menu.lst
-sed -i -e 's/sda/$disk/' /mnt/gentoo/etc/fstab
-sed -i -e 's/ext4/ext3/' /mnt/gentoo/etc/fstab
 
 echo 'system build done.  Please reboot.'
 ";

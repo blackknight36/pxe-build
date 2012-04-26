@@ -1,3 +1,8 @@
 sda1	1M	512M	ext3	/boot
-sda2	512M	4608M	swap
-sda3	4608M	-1	ext3	/
+sda2	512M	20992M	ext3	/usr
+sda3	20992M	25088M	swap
+sda4	25088M	-1	extended
+sda5	25088M	45568M	ext3	/var
+sda6	45568M	47616M	ext3	/tmp
+sda7	47616M	49664M	ext3	/
+sda8	49664M	-1	ext3	/home	

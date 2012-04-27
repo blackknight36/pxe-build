@@ -1,8 +1,8 @@
-sda1	1M	512M	ext3	/boot
-sda2	512M	20992M	ext3	/usr
-sda3	20992M	25088M	swap
-sda4	25088M	-1	extended
-sda5	25088M	45568M	ext3	/var
-sda6	45568M	47616M	ext3	/tmp
-sda7	47616M	49664M	ext3	/
-sda8	49664M	-1	ext3	/home	
+sda1	primary	1M	512M	ext3	/boot
+sda2	primary	512M	20992M	ext3	/usr
+sda3	primary	20992M	25088M	swap
+sda4	extended	25088M	-1	none
+sda5	logical	25089M	45568M	ext3	/var
+sda6	logical	45568M	47616M	ext3	/tmp
+sda7	logical	47616M	49664M	ext3	/
+sda8	logical	49664M	-1	ext3	/home	

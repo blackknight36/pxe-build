@@ -1,5 +1,0 @@
-sda1	17.4k	100M	ext3	/boot
-sda2	101M	4000M	linux-swap	swap
-sda3	4000M	604G	ext4	/
-sda4	604G	12.0T	ext4	/var/data/disk0
-sda5	12.0T	24.0T	ext4	/var/data/disk1

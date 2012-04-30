@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 if ( @ARGV < 1 ) {
-	print "usage: build_ramdisk.pl <pxe_boot_label> <pxe_menulabel>\n";
+	print "usage: build_g4l_ramdisk.pl <pxe_boot_label> <pxe_menulabel>\n";
         exit 1;
 }
 

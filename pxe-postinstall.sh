@@ -1,7 +1,5 @@
-#!/bin/bash
-#
+#!/bin/bash -v
 # post install script 
-# 
 # This script should be run online, with a public IP and CPanel license assigned to the server. 
 
 if [ -f /root/.bashrc ]; then
@@ -28,7 +26,7 @@ set_root_passwd
 
 alter_bash
 
-# Install Ruby - why?
+# Install Ruby - needed for Rails
 /scripts/installruby
 
 install_lpskel
@@ -63,34 +61,30 @@ fi
 
 fix_cpanel_license
 
-do_raid
+install_raider
 
 fix_bind 
 
 if [ "$INITADMIN" ]; then
-        echo "Running ServerSecure Setup..."
+    echo "Running ServerSecure Setup..."
 
-        #
-        # Install firewall and security scripts - ServerSecure starts here
-        #
-        fix_ssh
+    # Install firewall and security scripts - ServerSecure starts here
+    fix_ssh
 
-        /usr/bin/yum -y install netpbm netpbm-devel netpbm-progs iptraf
+    /usr/bin/yum -y install netpbm netpbm-devel netpbm-progs iptraf
 	# Removing the ddos package from this list, as per siena. --dwalters 20091125
-        /usr/bin/yum -c /usr/local/lp/configs/yum/yum.conf -y install lp-security-scripts iftop iptraf
+    /usr/bin/yum -c /usr/local/lp/configs/yum/yum.conf -y install lp-security-scripts iftop iptraf
 	
-        /scripts/perlinstaller Digest::SHA1
-        /usr/bin/yum -c /usr/local/lp/configs/yum/yum.conf -y install lp-rkhunter lp-chkrootkit
+    /scripts/perlinstaller Digest::SHA1
+    /usr/bin/yum -c /usr/local/lp/configs/yum/yum.conf -y install lp-rkhunter lp-chkrootkit
 
+    install_mytop
 
-        install_mytop
+    # Install clamAV and RBLs
+    activate_cpanel_pro
+    configure_clam
 
-        # Install clamAV and RBLs
-        #
-        activate_cpanel_pro
-        configure_clam
-
-        configure_exim
+    configure_exim
 	
 	fix_courier
 
@@ -100,37 +94,31 @@ if [ "$INITADMIN" ]; then
 
 	noexec_dev_shm
 
-        # Turn off compilers
-        #/scripts/compilers off
+    # Turn off compilers
+    #/scripts/compilers off
 
-        # SMTP Tweak
-        #/scripts/smtpmailgidonly on
+    # SMTP Tweak
+    #/scripts/smtpmailgidonly on
 
-        # Turn off shell access
-        #adduser -D -s /usr/local/cpanel/bin/noshell
+    # Turn off shell access
+    #adduser -D -s /usr/local/cpanel/bin/noshell
 
-        # Enable fork bomb protection
-        #echo "Enabling shell fork bomb protection..."
-        #curl "http://root:${ROOTPW}@localhost:2086/scripts2/modlimits?limits=1" > /dev/null
+    # Enable fork bomb protection
+    #echo "Enabling shell fork bomb protection..."
+    #curl "http://root:${ROOTPW}@localhost:2086/scripts2/modlimits?limits=1" > /dev/null
 
-        #echo "Disabling dangerous commands..."
-        #disable_binaries > /dev/null
+    #echo "Disabling dangerous commands..."
+    #disable_binaries > /dev/null
 
-        /scripts/securetmp --auto
-        ##
-        ## ServerSecure stuff ends here
-        ##
+    /scripts/securetmp --auto
+	cpanel_configure_apache
+    ## ServerSecure stuff ends here
 
-if [ "$SECPLUS" ]; then
-
-install_secplus
-
-else
-
-install_csf
-
-fi
-
+	if [ "$SECPLUS" ]; then
+		install_secplus
+	else
+		install_csf
+	fi
 fi
 
 whm_lic_agree
@@ -144,27 +132,25 @@ fix_cpanel_ssl
 update_mysql
 
 # Install missing perl modules so EA will run, Cpanel is retarded
-cpanel_perl_module_fix
-
-# Install Apache -- If server secure is set, use that
-cpanel_configure_apache
+# not sure this is needed now - MikeW
+# cpanel_perl_module_fix
 
 # Install Mr. Radar
 install_mrradar "cpanel"
 
-echo "Cleaning up temp files (/home/temp)..."
+echo "Cleaning up temp files (/home/temp)"
 rm -rf /home/temp && mkdir /home/temp
 
-echo "Restarting CPanel..."
+echo "Restarting cPanel"
 /etc/init.d/cpanel restart
 
-echo "Updating Cpanel..."
+echo "Running cPanel updates"
 /scripts/upcp --force
 
-echo "System setup done. Remember to reboot the server"
+echo "System setup done. Remember to reboot the server."
 
 if [ "$SECPLUS" ]; then
-echo "WARNING WARNING WARNING the new SSH port is now 22222 please make a sure to set the su user and the alternat port in billing!!."
+	echo "WARNING WARNING WARNING the new SSH port is now 22222 please make a sure to set the su user and the alternat port in billing!!."
 fi
 
 chattr -i /usr/bin/screen
@@ -180,9 +166,9 @@ disable_cputhrottle
 # lftp
 fix_lftp
 
-# Euthanize self
-cd /root
-rm -fv $0
-rm -fv "functions.sh"
+# Euthanize self - disabled for testing
+#cd /root
+#rm -fv $0
+#rm -fv "cpanel-functions.sh"
 
 exit 0

@@ -43,11 +43,11 @@ function getrelease {
 #   GATEWAY     - Gateway for networking
 #   HOSTNAME    - What the hostname should be 
 #   ROOTPW      - What the root password will be 
-#   INITADMIN   - Do we install initadmin?
+#   INITADMIN   - Do we install ServerSecure?
 #   FANTASTICO  - Do we install fantastico?
 #   BACKUPS     - Do we configure backups for this server
 
-function get_data() {
+function get_server_data() {
    MAINIP=`ifconfig eth0 |grep "inet addr" | cut -d ":" -f 2 | cut -d " " -f 1`
    NETMASK=`ifconfig eth0 |grep "Mask:" | cut -d ":" -f 4`
    GATEWAY=`route -n | tail -1 | awk {'print $2'}`
@@ -110,7 +110,7 @@ function get_data() {
 
 function set_resolver() {
 # 10.10.10.10 is available to every DC
-cat << EOF >> /etc/resolv.conf
+cat << EOF > /etc/resolv.conf
 nameserver 10.10.10.10
 EOF
 }
@@ -126,10 +126,10 @@ function set_root_passwd() {
 install_secplus() {
         if [ -f /usr/local/lp/configs/yum/yum.conf ] ; then
                 yum -c /usr/local/lp/configs/yum/yum.conf -y install yumconf-serversecureplus
-                yum  -c /usr/local/lp/configs/yum/yum.conf -y install lp-modsec2-rules
+                yum -c /usr/local/lp/configs/yum/yum.conf -y install lp-modsec2-rules
         else
-                yum  -y install yumconf-serversecureplus
-                yum  -y install lp-modsec2-rules
+                yum -y install yumconf-serversecureplus
+                yum -y install lp-modsec2-rules
         fi
 
         yum -y install serversecureplus-modsec2-rules serversecureplus-config
@@ -220,8 +220,6 @@ fi
 # disable_recursion
 # Disalbes recursion for everybody but monitoring servers (Cpanel only for now)
 function disable_recursion() {
-# echo "FIXME -- 'trusted' needs its own packages at it changes all the time."
-# TODO - add separate package for "trusted" net.. (trusted is a bad name too)
 cp /etc/named.conf /etc/named.conf.bak
 cat << EOF > /etc/named.conf
 key "rndc-key" {
@@ -259,7 +257,6 @@ options {
    allow-recursion { trusted; };
 };
 EOF
-/scripts/fixndc
 }
 
 # fix_hosts
@@ -272,11 +269,10 @@ function fix_hosts() {
 127.0.0.1      ${shortname} ${HOSTNAME} localhost.localdomain localhost
 ${MAINIP}      ${shortname} ${HOSTNAME}
 EOF
-
 }
 
 # install_modevasive
-# Installsl mod_evasive (Cpanel only right now)
+# Installsl mod_evasive
 function install_modevasive() {
 	cd /home/temp
 	wget http://layer3.liquidweb.com/packages/mod_evasive_1.10.1.tar.gz
@@ -293,7 +289,6 @@ DOSPageInterval     1
 DOSSiteInterval     1
 DOSBlockingPeriod   10
 </IfModule>
-
 EOF
 	/usr/local/cpanel/bin/apache_conf_distiller --update 
 	/usr/local/cpanel/bin/build_apache_conf 
@@ -444,16 +439,15 @@ PROMPT_COMMAND=prm1
 EOF
 fi
 #   readonly PROMPT_COMMAND=prm1   
-
 }
 
 
 # install_lpskel
 # Installs our skeleton rpm, and repo files
 function install_lpskel {
-                cd /home/temp
-                wget http://syspackages.sourcedns.com/packages/stable/centos/6/noarch/yumconf-sourcedns-1.0-3.noarch.rpm
-                rpm -i yumconf-sourcedns-1.0-3.noarch.rpm
+	cd /home/temp
+	wget http://syspackages.sourcedns.com/packages/stable/centos/6/noarch/yumconf-sourcedns-1.0-3.noarch.rpm
+	rpm -i yumconf-sourcedns-1.0-3.noarch.rpm
 }
 
 # install_ntp
@@ -538,14 +532,13 @@ EOF
 	/etc/init.d/chkservd restart
 }
 
-# do_raid
-function do_raid() {
+# install_raider
+function install_raider() {
 	# Raid monitoring has moved to raider
-	/usr/bin/yum -y install raider
+	yum -c /usr/local/lp/configs/yum/yum.conf -y install raider
 	rm -f /usr/local/lp/var/raider/jobs/*
 	/usr/local/lp/apps/raider get-devices
 	/usr/local/lp/apps/raider run-jobs
-
 }
 
 # fix_bind
@@ -554,6 +547,7 @@ function fix_bind() {
 	disable_recursion
 	service named restart
 	chkconfig named on
+	/scripts/fixndc
 }
 
 # fix_ssh
@@ -761,21 +755,16 @@ function cpanel_perl_module_fix() {
 }
 
 # cpanel_configure_apache
-# Configures Apache for our Cpanel installs
-#   Inspects $INITADMIN - make sure get_data is called before this.
+# Configures Apache for Cpanel installs
+#   Inspects $INITADMIN - make sure get_server_data is called before this.
 function cpanel_configure_apache() {
-        if [ "$INITADMIN" ]; then
-                # old and busted way
-		#wget -P /var/cpanel/easy/apache/profile/custom http://layer3.liquidweb.com/configs/apache/lw_server_secure.yaml
-                #/scripts/easyapache --always_do_the_latest_phps --profile=lw_server_secure --build
+   if [ "$INITADMIN" ]; then
 
-if [ "$SHARED_SERVER" ]; then
-  rm -f /var/cpanel/easy/apache/prefs.yaml
-  mv /home/temp/prefs.yaml /var/cpanel/easy/apache/prefs.yaml
-  mv /home/temp/shared_server.yaml /var/cpanel/easy/apache/profile/custom/shared_server.yaml
-  #/scripts/easyapache --build --profile=shared_server
-
-else
+	#if [ "$SHARED_SERVER" ]; then
+	#	rm -f /var/cpanel/easy/apache/prefs.yaml
+	#	mv /home/temp/prefs.yaml /var/cpanel/easy/apache/prefs.yaml
+	#	mv /home/temp/shared_server.yaml /var/cpanel/easy/apache/profile/custom/shared_server.yaml
+	#fi
 
 cat > /var/cpanel/easy/apache/profile/custom/lw_server_secure.yaml << EOF
 # make sure any changes here are reflected in Cpanel::Easy::Apache::get_apache_defaults_text() if necessary
@@ -999,53 +988,51 @@ Cpanel::Easy::PHPSuHosin: 1
 _meta: 
   name: Liquid Web Server Secure
   note: This is the default configuration with common modules selected and the addition of Mod suPHP for added security measures and tracking for PHP scripts. See http://www.suphp.org for more information about suPHP.
-  revision: 0.1
+  revision: 20120502
 EOF
 
+	/scripts/easyapache --profile=lw_server_secure --build
 
-		/scripts/easyapache --profile=lw_server_secure --build
+    # Enable mod_security rules
+    wget http://updates.atomicorp.com/channels/rules/delayed/modsec-.tar.gz
+    tar -xzvf modsec-.tar.gz -C /usr/local/apache/conf/
+
+    cat > /usr/local/apache/conf/modsec2.user.conf << EOF
+SecRequestBodyAccess On
+SecDataDir /var/tmp
+SecTmpDir /var/tmp
+SecPcreMatchLimit 150000
+SecPcreMatchLimitRecursion 150000
+Include "/usr/local/apache/conf/modsec/00_asl_whitelist.conf"
+Include "/usr/local/apache/conf/modsec/05_asl_exclude.conf"
+Include "/usr/local/apache/conf/modsec/10_asl_antimalware.conf"
+Include "/usr/local/apache/conf/modsec/10_asl_rules.conf"
+Include "/usr/local/apache/conf/modsec/11_asl_data_loss.conf"
+Include "/usr/local/apache/conf/modsec/20_asl_useragents.conf"
+Include "/usr/local/apache/conf/modsec/30_asl_antispam.conf"
+Include "/usr/local/apache/conf/modsec/30_asl_antispam_referrer.conf"
+Include "/usr/local/apache/conf/modsec/40_asl_apache2-rules.conf"
+Include "/usr/local/apache/conf/modsec/50_asl_rootkits.conf"
+Include "/usr/local/apache/conf/modsec/60_asl_recons.conf"
+Include "/usr/local/apache/conf/modsec/99_asl_exclude.conf"
+Include "/usr/local/apache/conf/modsec/99_asl_jitp.conf"
+Include "/usr/local/apache/conf/modsec/99_asl_redactor.conf"
+EOF
+
+    mkdir /etc/asl
+    touch /etc/asl/whitelist
+
+    perl -i -p -e 's/SecRule.*\(exec\\s\*\\\(\\s\*@\)\" \\//g' /usr/local/apache/conf/modsec/10_asl_rules.conf
+    perl -i -p -e 's/.*id:380022.*//g' /usr/local/apache/conf/modsec/10_asl_rules.conf
+
+    # Enable suPHP for ServerSecure installs
+    /usr/local/cpanel/bin/rebuild_phpconf 5 none suphp enabled
+else
+    #wget -P /var/cpanel/easy/apache/profile/custom http://layer3.liquidweb.com/configs/apache/lw_default.yaml
+	#do not need to run EA - Default install is part of the tar file
+    #/scripts/easyapache --profile=lw_default --build
+    #/usr/local/cpanel/bin/rebuild_phpconf 5 none dso enabled
 fi
-
-                # Enable mod_security rules
-                wget http://updates.atomicorp.com/channels/rules/delayed/modsec-.tar.gz
-                tar -xzvf modsec-.tar.gz -C /usr/local/apache/conf/
-
-                cat > /usr/local/apache/conf/modsec2.user.conf << EOF
-                SecRequestBodyAccess On
-                SecDataDir /var/tmp
-                SecTmpDir /var/tmp
-                SecPcreMatchLimit 150000
-                SecPcreMatchLimitRecursion 150000
-                Include "/usr/local/apache/conf/modsec/00_asl_whitelist.conf"
-                Include "/usr/local/apache/conf/modsec/05_asl_exclude.conf"
-                Include "/usr/local/apache/conf/modsec/10_asl_antimalware.conf"
-                Include "/usr/local/apache/conf/modsec/10_asl_rules.conf"
-                Include "/usr/local/apache/conf/modsec/11_asl_data_loss.conf"
-                Include "/usr/local/apache/conf/modsec/20_asl_useragents.conf"
-                Include "/usr/local/apache/conf/modsec/30_asl_antispam.conf"
-                Include "/usr/local/apache/conf/modsec/30_asl_antispam_referrer.conf"
-                Include "/usr/local/apache/conf/modsec/40_asl_apache2-rules.conf"
-                Include "/usr/local/apache/conf/modsec/50_asl_rootkits.conf"
-                Include "/usr/local/apache/conf/modsec/60_asl_recons.conf"
-                Include "/usr/local/apache/conf/modsec/99_asl_exclude.conf"
-                Include "/usr/local/apache/conf/modsec/99_asl_jitp.conf"
-                Include "/usr/local/apache/conf/modsec/99_asl_redactor.conf"
-EOF
-                mkdir /etc/asl
-                touch /etc/asl/whitelist
-
-                perl -i -p -e 's/SecRule.*\(exec\\s\*\\\(\\s\*@\)\" \\//g' /usr/local/apache/conf/modsec/10_asl_rules.conf
-                perl -i -p -e 's/.*id:380022.*//g' /usr/local/apache/conf/modsec/10_asl_rules.conf
-
-
-                # Enable suPHP
-                #/usr/local/cpanel/bin/rebuild_phpconf 5 none suphp enabled
-                /usr/local/cpanel/bin/rebuild_phpconf 5 none dso enabled
-        else
-                wget -P /var/cpanel/easy/apache/profile/custom http://layer3.liquidweb.com/configs/apache/lw_default.yaml
-                #/scripts/easyapache --always_do_the_latest_phps --profile=lw_default --build
-                /scripts/easyapache --profile=lw_default --build
-        fi
 }
 
 # install_firewall
@@ -1076,7 +1063,6 @@ function disable_cputhrottle() {
 #secure_ftp
 #Secures FTP by disabling root ftp logins
 function secure_ftp() {
-
 	sed -i -e '/RootPassLogins:/s/yes/no/g' /var/cpanel/conf/pureftpd/main
 	/usr/local/cpanel/whostmgr/bin/whostmgr2 doftpconfiguration
 
@@ -1127,7 +1113,6 @@ tcp:in:d=3306:s=69.16.234.126
 69.16.234.108 
 67.227.128.126
 67.227.128.125
-
 
 10.10.10.10
 10.254.254.254
